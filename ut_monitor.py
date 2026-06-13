@@ -2,6 +2,7 @@ import os
 import asyncio
 import logging
 import requests
+from dotenv import load_dotenv
 from playwright.async_api import async_playwright
 
 # --- Configuration & Logging Setup ---
@@ -10,6 +11,10 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Load environment variables from .env file relative to script directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(script_dir, '.env'))
 
 # Credentials and Notification Settings from Environment Variables
 UT_USERNAME = os.getenv('UT_USERNAME')
