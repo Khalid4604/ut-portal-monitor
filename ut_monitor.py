@@ -14,32 +14,29 @@ logger = logging.getLogger(__name__)
 # Credentials and Notification Settings from Environment Variables
 UT_USERNAME = os.getenv('UT_USERNAME')
 UT_PASSWORD = os.getenv('UT_PASSWORD')
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+POKE_WEBHOOK_URL = os.getenv('POKE_WEBHOOK_URL', 'https://poke.com/api/v1/inbound/ingest/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhODQyZGQzNS02MzJhLTQ0YTQtOTQ3NS00MTJlNGZlYTI0ODAiLCJqdGkiOiJmNjkzY2QyYS0xYjJjLTQyNzEtYTJlOS0yYTJkZDllMDcyYTEiLCJpYXQiOjE3ODEzNDk0MDksImV4cCI6MjA5NjcwOTQwOX0.cp32IT1o04E3JvkymdYJqGEyA8EFPZuEs4Bt7cxYUNI')
 
 PORTAL_URL = "https://myut.ut.edu.sa/ut/ui/guest/common/index.faces"
 
-def send_telegram_notification(message):
+def send_poke_notification(message):
     """
-    Sends a message to the user via Telegram Bot API.
+    Sends a message to the user via Poke Webhook Ingest URL.
     """
-    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-        logger.warning("Telegram configuration missing. Skipping notification.")
+    if not POKE_WEBHOOK_URL:
+        logger.warning("Poke Webhook URL configuration missing. Skipping notification.")
         return
 
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
         "text": message,
-        "parse_mode": "HTML"
+        "source": "ut-portal-monitor"
     }
 
     try:
-        response = requests.post(url, json=payload)
+        response = requests.post(POKE_WEBHOOK_URL, json=payload)
         response.raise_for_status()
-        logger.info("Telegram notification sent successfully.")
+        logger.info("Poke notification sent successfully.")
     except Exception as e:
-        logger.error(f"Failed to send Telegram notification: {str(e)}")
+        logger.error(f"Failed to send Poke notification: {str(e)}")
 
 async def monitor_tabuk_portal():
     if not UT_USERNAME or not UT_PASSWORD:
@@ -68,9 +65,9 @@ async def monitor_tabuk_portal():
             
             # Check for login errors
             if "index.faces" in page.url and await page.query_selector(".error"):
-                error_msg = "❌ <b>Tabuk Portal Login Failed:</b> Invalid credentials or server error."
+                error_msg = "❌ Tabuk Portal Login Failed: Invalid credentials or server error."
                 logger.error(error_msg)
-                send_telegram_notification(error_msg)
+                send_poke_notification(error_msg)
                 return
             
             logger.info("Login successful.")
@@ -88,9 +85,9 @@ async def monitor_tabuk_portal():
                 content = await page.content()
                 # Check if registration is open based on common success keywords
                 if "متاح" in content or "اختيار المقرر" in content:
-                    status_msg = "🚀 <b>University of Tabuk Alert:</b> Drop/Add (الحذف والاضافة) is now <b>OPEN</b>!"
+                    status_msg = "🚀 University of Tabuk Alert: Drop/Add (الحذف والاضافة) is now OPEN!"
                     logger.info(status_msg)
-                    send_telegram_notification(status_msg)
+                    send_poke_notification(status_msg)
                 else:
                     logger.info("Drop/Add is currently closed.")
             else:
@@ -118,9 +115,9 @@ async def monitor_tabuk_portal():
                 logger.warning("Grades/Transcript link not found in the portal menu.")
 
         except Exception as e:
-            error_trace = f"⚠️ <b>Automation Error:</b> {str(e)}"
+            error_trace = f"⚠️ Automation Error: {str(e)}"
             logger.error(error_trace)
-            send_telegram_notification(error_trace)
+            send_poke_notification(error_trace)
         finally:
             await browser.close()
             logger.info("Portal monitor task completed.")
